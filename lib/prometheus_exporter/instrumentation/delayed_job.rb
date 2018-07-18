@@ -26,8 +26,13 @@ module PrometheusExporter::Instrumentation
     def call(job, *args, &block)
       success = false
       start = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC)
+      attempts = job.attempts + 1 # Increment because we're adding the current attempt
+      handler = job.handler
+      job_id = job.id
+
       result = block.call(job, *args)
       success = true
+
       result
     ensure
       duration = ::Process.clock_gettime(::Process::CLOCK_MONOTONIC) - start
@@ -36,7 +41,10 @@ module PrometheusExporter::Instrumentation
         type: "delayed_job",
         name: job.handler.to_s.match(JOB_CLASS_REGEXP).to_a[1].to_s,
         success: success,
-        duration: duration
+        duration: duration,
+        attempts: attempts,
+        handler: handler,
+        job_id: job_id
       )
     end
   end
